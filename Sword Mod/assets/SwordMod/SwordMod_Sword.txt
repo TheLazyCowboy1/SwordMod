@@ -1,0 +1,28 @@
+{"frames": {
+
+"SwordMod_Sword.png":
+{
+	"frame": {"x":0,"y":0,"w":14,"h":61},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":14,"h":61},
+	"sourceSize": {"w":14,"h":61}
+},
+"Symbol_SwordMod_Sword.png":
+{
+	"frame": {"x":0,"y":61,"w":18,"h":34},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":18,"h":34},
+	"sourceSize": {"w":18,"h":34}
+}
+},
+"meta": {
+	"app": "none",
+	"version": "1.0",
+	"image": "SwordMod_Sword.png",
+	"format": "RGBA8888",
+	"size": {"w":18,"h":95},
+	"scale": "1"
+}
+}
