@@ -1,38 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Security;
 using System.Security.Permissions;
-using UnityEngine;
 using RWCustom;
 using BepInEx;
-using Debug = UnityEngine.Debug;
-using IL;
-using MoreSlugcats;
-using On.MoreSlugcats;
-using On;
-using IL.MoreSlugcats;
-using System.Numerics;
-using IL.Menu;
-using Menu;
-using On.Menu;
-using UnityEngine.Playables;
-using Vector2 = UnityEngine.Vector2;
-using RewiredConsts;
 using MoreSlugcatsEnums = MoreSlugcats.MoreSlugcatsEnums;
 using System.Text.RegularExpressions;
-using HarmonyLib;
-using BepInEx.Logging;
-using HarmonyLib.Tools;
 using System.Reflection;
 using MonoMod.RuntimeDetour;
-using System.Reflection.Emit;
-using UnityEngineInternal;
-using Steamworks;
 using System.IO;
 using Random = UnityEngine.Random;
-using System.Security.Policy;
 
 #pragma warning disable CS0618
 
@@ -41,9 +17,13 @@ using System.Security.Policy;
 
 namespace SwordMod;
 
-[BepInPlugin("LazyCowboy.SwordMod", "Sword Mod", "1.0.3")]
+[BepInPlugin(MOD_ID, MOD_NAME, MOD_VERSION)]
 public partial class SwordMod : BaseUnityPlugin
 {
+    public const string MOD_ID = "LazyCowboy.SwordMod";
+    public const string MOD_NAME = "Sword Mod";
+    public const string MOD_VERSION = "1.0.3";
+
     /*
      * Ideas (in order of priority):
     */
