@@ -1,0 +1,8 @@
+
+namespace SwordMod;
+
+internal partial class MeadowRemixSync {
+  public class RemixData {
+
+  }
+}
