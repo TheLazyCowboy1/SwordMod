@@ -1,8 +1,5 @@
 using BepInEx.Logging;
-using Menu.Remix;
 using Menu.Remix.MixedUI;
-using Menu.Remix.MixedUI.ValueTypes;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace SwordMod;

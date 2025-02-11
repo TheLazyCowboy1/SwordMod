@@ -7,7 +7,8 @@ namespace SwordMod
 {
     public class Sword : Weapon
     {
-        public static AbstractPhysicalObject.AbstractObjectType SwordType = new AbstractPhysicalObject.AbstractObjectType("Sword", true);
+        public static AbstractPhysicalObject.AbstractObjectType SwordType;// = new AbstractPhysicalObject.AbstractObjectType("Sword", true);
+        public static MultiplayerUnlocks.SandboxUnlockID SandboxID;
 
         //variables
         public int swingTimer = 0;

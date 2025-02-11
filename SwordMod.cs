@@ -22,7 +22,7 @@ public partial class SwordMod : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.SwordMod";
     public const string MOD_NAME = "Sword Mod";
-    public const string MOD_VERSION = "1.0.3";
+    public const string MOD_VERSION = "1.0.4";
 
     /*
      * Ideas (in order of priority):
@@ -151,7 +151,9 @@ public partial class SwordMod : BaseUnityPlugin
 
             try
             {
-                MultiplayerUnlocks.ItemUnlockList.Add(new MultiplayerUnlocks.SandboxUnlockID("SwordMod_Sword", true));
+                Sword.SwordType = new AbstractPhysicalObject.AbstractObjectType("Sword", true); //I really wish I had put "SwordMod_Sword"
+                Sword.SandboxID = new MultiplayerUnlocks.SandboxUnlockID("SwordMod_Sword", true);
+                MultiplayerUnlocks.ItemUnlockList.Add(Sword.SandboxID);
 
                 //Logger.LogInfo("Sandbox Symbol Size: " + Futile.atlasManager.GetElementWithName("Symbol_FireSpear").sourceSize.ToString());
             } catch (Exception ex)
@@ -170,7 +172,7 @@ public partial class SwordMod : BaseUnityPlugin
             }
 
 
-            MachineConnector.SetRegisteredOI("LazyCowboy.SwordMod", Options);
+            MachineConnector.SetRegisteredOI(MOD_ID, Options);
             IsInit = true;
         }
         catch (Exception ex)
@@ -246,7 +248,10 @@ public partial class SwordMod : BaseUnityPlugin
         orig(self);
 
         if (self.type == Sword.SwordType)
+        {
             self.realizedObject = new Sword(self, self.world);
+            Logger.LogDebug("Sword ExtEnum index: " + (int) Sword.SwordType);
+        }
     }
 
     public void Spawn_Sword_On_Player_Spawn(On.Player.orig_ctor orig, Player self, AbstractCreature abstractCreature, World world)
@@ -285,13 +290,13 @@ public partial class SwordMod : BaseUnityPlugin
     #region Sandbox_Hooks
     public bool Sandbox_Item_Unlocked(On.MultiplayerUnlocks.orig_SandboxItemUnlocked orig, MultiplayerUnlocks self, MultiplayerUnlocks.SandboxUnlockID unlockID)
     {
-        if (unlockID.value == "SwordMod_Sword")
+        if (unlockID == Sword.SandboxID)
             return true;
         return orig(self, unlockID);
     }
     public IconSymbol.IconSymbolData Sandbox_Symbol_Data(On.MultiplayerUnlocks.orig_SymbolDataForSandboxUnlock orig, MultiplayerUnlocks.SandboxUnlockID unlockID)
     {
-        if (unlockID.value == "SwordMod_Sword")
+        if (unlockID == Sword.SandboxID)
             return new IconSymbol.IconSymbolData(CreatureTemplate.Type.StandardGroundCreature, Sword.SwordType, 0);
         return orig(unlockID);
     }
