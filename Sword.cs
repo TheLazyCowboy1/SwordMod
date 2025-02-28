@@ -157,9 +157,11 @@ namespace SwordMod
 
                 //this.firstChunk.lastPos = this.thrownBy.firstChunk.pos + (Mathf.Sin(Mathf.PI * (float)swingTimer / (float)TotalSwingTime) * 6f + 4f) * this.rotation; //the visual location of the sword
 
-                this.firstChunk.pos = this.thrownBy.firstChunk.pos + (Mathf.Sin(Mathf.PI * (float)swingTimer / (float)TotalSwingTime) * 20f - 30f) * this.rotation; //the location of the sword for hit-checking
+                //note: sword extends up to 50 INTO the thrower; moves up to 20 forward over course of the swing
+                this.firstChunk.pos = this.thrownBy.firstChunk.pos + (Mathf.Sin(Mathf.PI * (float)swingTimer / (float)TotalSwingTime) * 20f - 50f) * this.rotation; //the location of the sword for hit-checking
                 //this.firstChunk.vel = this.thrownBy.firstChunk.vel + this.setRotation.Value * (Mathf.Sin(Mathf.PI * (float)swingTimer / (float)TotalSwingTime) * 15f + 40f);
-                this.firstChunk.vel = this.thrownBy.firstChunk.vel + this.setRotation.Value * 75f * ((Mathf.Abs(swingDir.x) < 1f && swingDir.y < 0f) ? DownswingLengthModifier : 1f) * (1f - 0.4f * swingExhaustion);
+                //note: sword length = 55 (~= actual sword length) + 50 (area inside player)
+                this.firstChunk.vel = this.thrownBy.firstChunk.vel + this.setRotation.Value * 105f * ((Mathf.Abs(swingDir.x) < 1f && swingDir.y < 0f) ? DownswingLengthModifier : 1f) * (1f - 0.4f * swingExhaustion);
 
                 swingTimer--;
 

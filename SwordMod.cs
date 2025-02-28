@@ -23,7 +23,7 @@ public partial class SwordMod : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.SwordMod";
     public const string MOD_NAME = "Sword Mod";
-    public const string MOD_VERSION = "1.0.5";
+    public const string MOD_VERSION = "1.0.6";
 
     public static SwordModOptions Options;
 
