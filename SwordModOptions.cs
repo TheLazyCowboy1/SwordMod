@@ -1,5 +1,6 @@
 using BepInEx.Logging;
 using Menu.Remix.MixedUI;
+using RainMeadowCompat;
 using UnityEngine;
 
 namespace SwordMod;
@@ -18,6 +19,7 @@ public class SwordModOptions : OptionInterface
         KnockbackModifier = config.Bind<float>("KnockbackModifier", 1f, new ConfigAcceptableRange<float>(0f, 10f));
         VerticalKnockbackModifier = config.Bind<float>("VerticalKnockbackModifier", 1f, new ConfigAcceptableRange<float>(0f, 10f));
         StunModifier = config.Bind<float>("StunModifier", 1f, new ConfigAcceptableRange<float>(-10f, 10f));
+        BaseStunShift = config.Bind<float>("BaseStunShift", 0f, new ConfigAcceptableRange<float>(-50f, 50f));
         LungeModifier = config.Bind<float>("LungeModifier", 1f, new ConfigAcceptableRange<float>(0f, 10f));
         SwingTime = config.Bind<int>("SwingTime", 17, new ConfigAcceptableRange<int>(1, 80));
         ParryWindow = config.Bind<int>("ParryWindow", 3, new ConfigAcceptableRange<int>(0, 40));
@@ -38,6 +40,14 @@ public class SwordModOptions : OptionInterface
         ExhaustionRateModifier = config.Bind<float>("ExhaustionRateModifier", 1.0f, new ConfigAcceptableRange<float>(0f, 10f));
         ExhaustionDamageModifier = config.Bind<float>("ExhaustionDamageModifier", 0.2f, new ConfigAcceptableRange<float>(0f, 2f));
 
+        EasyConfigSync.RegisterConfigs(
+            AllowParries, AllowDualWielding, SwingDamageModifier, KnockbackModifier, VerticalKnockbackModifier,
+            StunModifier, BaseStunShift, LungeModifier, SwingTime, ParryWindow, ExhaustsGourmand,
+            SpawnAt5P, SpawnAtMoon, RemoveMoon, SpawnEveryCycle, ScavSpawnChance,
+            OmnidirectionalSwings, HorizontalPushbackModifier, VerticalPushbackModifier, DownswingLengthModifier, UseStaminaMechanics,
+            ExhaustionRateModifier, ExhaustionDamageModifier
+            );
+
     }
 
     public Configurable<bool> AllowParries;
@@ -46,6 +56,7 @@ public class SwordModOptions : OptionInterface
     public Configurable<float> KnockbackModifier;
     public Configurable<float> VerticalKnockbackModifier;
     public Configurable<float> StunModifier;
+    public Configurable<float> BaseStunShift;
     public Configurable<float> LungeModifier;
     public Configurable<int> SwingTime;
     public Configurable<int> ParryWindow;
@@ -83,7 +94,7 @@ public class SwordModOptions : OptionInterface
         };
 
         //General Options
-        float h = 550f, g = -30f, w = 10f, d = 100f;
+        float h = 580f, g = -30f, w = 10f, d = 100f;
         UIArrOptions = new UIelement[]
         {
             //General Options
@@ -92,8 +103,9 @@ public class SwordModOptions : OptionInterface
             new OpCheckBox(AllowDualWielding, w, h+=g){description="Allows players to hold two swords simultaneously: an unintended, overpowered, but hilarious mechanic."}, new OpLabel(d, h, "Allow Dual-Wielding"),
             new OpUpdown(SwingDamageModifier, new Vector2(w, h+=g), 80f, 1){description="Defines how much damage the sword deals when swung by Survivor."}, new OpLabel(d, h, "Damage Multiplier"),
             new OpUpdown(KnockbackModifier, new Vector2(w, h+=g), 80f, 1){description="Multiplies the amount of knockback imparted upon creatures struct with the sword."}, new OpLabel(d, h, "Knockback Multiplier"),
-            new OpUpdown(VerticalKnockbackModifier, new Vector2(w, h+=g), 80f, 1){description="Further multiplies the upward knockback from upswings. This was added solely to make the opening scene of the trailer."}, new OpLabel(d, h, "Vertical Knockback Multiplier"),
+            new OpUpdown(VerticalKnockbackModifier, new Vector2(w+w, h+=g), 80f, 1){description="Further multiplies the upward knockback from upswings. This was added solely to make the opening scene of the trailer."}, new OpLabel(d, h, "Vertical Knockback Multiplier"),
             new OpUpdown(StunModifier, new Vector2(w, h+=g), 80f, 1){description="Affects the stun time of creatures hit by the sword. Higher values = more stun; lower values = less stun."}, new OpLabel(d, h, "Stun Multiplier"),
+            new OpUpdown(BaseStunShift, new Vector2(w+w, h+=g), 80f, 1){description="Adds/subtracts a fixed amount to the stun amount.\nNegative values recommended for PvP. (Try -15.0)"}, new OpLabel(d, h, "Base Stun"),
             new OpUpdown(LungeModifier, new Vector2(w, h+=g), 80f, 1){description="Multiplies the velocity added to an airborne player when swinging the sword."}, new OpLabel(d, h, "Lunge Multiplier"),
             new OpUpdown(true, SwingTime, new Vector2(w, h+=g), 80f){description="How long the sword swings in ticks (~1/40th of a second)."}, new OpLabel(d, h, "/40s  Swing Time"),
             new OpUpdown(true, ParryWindow, new Vector2(w, h+=g), 80f){description="The delay before the sword can damage creatures in ticks (~1/40th of a second). Gives a brief amount of time to parry another player's attack."}, new OpLabel(d, h, "/40s  Parry Window"),

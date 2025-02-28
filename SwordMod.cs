@@ -9,6 +9,7 @@ using System.Reflection;
 using MonoMod.RuntimeDetour;
 using System.IO;
 using Random = UnityEngine.Random;
+using RainMeadowCompat;
 
 #pragma warning disable CS0618
 
@@ -22,11 +23,8 @@ public partial class SwordMod : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.SwordMod";
     public const string MOD_NAME = "Sword Mod";
-    public const string MOD_VERSION = "1.0.4";
+    public const string MOD_VERSION = "1.0.5";
 
-    /*
-     * Ideas (in order of priority):
-    */
     public static SwordModOptions Options;
 
     public static bool CustomHitSoftSound = false, CustomHitHardSound = false, CustomHitWallSound = false, CustomParrySound = false, CustomSwingSound = false;
@@ -37,6 +35,7 @@ public partial class SwordMod : BaseUnityPlugin
         try
         {
             Options = new SwordModOptions(this, Logger);
+            SafeMeadowInterface.InitializeMeadowCompatibility(Logger);
         }
         catch (Exception ex)
         {
@@ -51,6 +50,8 @@ public partial class SwordMod : BaseUnityPlugin
 
     private void OnDisable()
     {
+        On.RainWorld.OnModsInit -= RainWorldOnOnModsInit;
+
         if (IsInit)
         {
             On.AbstractPhysicalObject.Realize -= Sword_Object_Realizer;
@@ -66,6 +67,10 @@ public partial class SwordMod : BaseUnityPlugin
 
             if (MoonDeadHook != null)
                 MoonDeadHook.Undo();
+
+            SafeMeadowInterface.RemoveHooks();
+
+            IsInit = false;
         }
     }
 
@@ -235,7 +240,9 @@ public partial class SwordMod : BaseUnityPlugin
 
         orig(self, lines);
 
-        if (self.world != null && self.game != null && flag && self.game.IsArenaSession && self.game.GetArenaGameSession.GameTypeSetup.levelItems)
+        if (flag && self.world != null && self.game != null
+            && self.game.IsArenaSession && self.game.GetArenaGameSession.GameTypeSetup.levelItems
+            && (!SafeMeadowInterface.IsOnline() || SafeMeadowInterface.IsHost()))
         {
             for (int i = 0; i < Options.RandomArenaSwords.Value; i++)
                 self.abstractRoom.AddEntity(new AbstractPhysicalObject(self.world, Sword.SwordType, null, new WorldCoordinate(self.abstractRoom.index, Random.RandomRange(5, 60), Random.RandomRange(20, 35), -1), self.game.GetNewID(-self.abstractRoom.index)));
@@ -259,6 +266,10 @@ public partial class SwordMod : BaseUnityPlugin
         orig(self, abstractCreature, world);
 
         if (!Options.SpawnEveryCycle.Value && !(ModManager.Expedition && Custom.rainWorld.ExpeditionMode && Expedition.ExpeditionGame.activeUnlocks.Contains(Sword_Perk.PERK_ID)))
+            return;
+
+        //don't spawn swords for other players; just spawn them for myself
+        if (SafeMeadowInterface.IsOnline() && !SafeMeadowInterface.IsMine(abstractCreature))
             return;
 
         try

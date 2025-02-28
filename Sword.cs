@@ -2,6 +2,7 @@
 using System;
 using UnityEngine;
 using Random = UnityEngine.Random;
+using RainMeadowCompat;
 
 namespace SwordMod
 {
@@ -11,9 +12,27 @@ namespace SwordMod
         public static MultiplayerUnlocks.SandboxUnlockID SandboxID;
 
         //variables
-        public int swingTimer = 0;
+        private int _swingTimer = 0;
+        public int swingTimer
+        {
+            get => _swingTimer;
+            set
+            {
+                if (!SafeMeadowInterface.IsOnline() || SafeMeadowInterface.IsMine(this.abstractPhysicalObject))
+                    _swingTimer = value;
+            }
+        }
         public Vector2 swingDir = new Vector2(0, 0);
-        public float swingDamage = 0f;
+        private float _swingDamage = 0f;
+        public float swingDamage
+        {
+            get => _swingDamage;
+            set
+            {
+                if (!SafeMeadowInterface.IsOnline() || SafeMeadowInterface.IsMine(this.abstractPhysicalObject))
+                    _swingDamage = value;
+            }
+        }
         public float swingExhaustion = 0f;
 
         public bool canHitWall = true;
@@ -28,6 +47,7 @@ namespace SwordMod
         public static float KnockbackModifier => (SwordMod.Options.KnockbackModifier != null) ? SwordMod.Options.KnockbackModifier.Value : 1f;
         public static float VerticalKnockbackModifier => (SwordMod.Options.VerticalKnockbackModifier != null) ? SwordMod.Options.VerticalKnockbackModifier.Value : 1f;
         public static float StunModifier => (SwordMod.Options.StunModifier != null) ? SwordMod.Options.StunModifier.Value : 1f;
+        public static float BaseStunShift => (SwordMod.Options.BaseStunShift != null) ? SwordMod.Options.BaseStunShift.Value : 0f;
         public static float LungeModifier => (SwordMod.Options.LungeModifier != null) ? SwordMod.Options.LungeModifier.Value : 1f;
         public static bool AllowParries => (SwordMod.Options.AllowParries != null) ? SwordMod.Options.AllowParries.Value : true;
         
@@ -36,7 +56,7 @@ namespace SwordMod
         public static float HorizontalPushbackModifier => (SwordMod.Options.HorizontalPushbackModifier != null) ? SwordMod.Options.HorizontalPushbackModifier.Value : 0f;
         public static float VerticalPushbackModifier => (SwordMod.Options.VerticalPushbackModifier != null) ? SwordMod.Options.VerticalPushbackModifier.Value : 0f;
         public static float DownswingLengthModifier => (SwordMod.Options.DownswingLengthModifier != null) ? SwordMod.Options.DownswingLengthModifier.Value : 1f;
-        public static bool UseStaminaMechanics => (SwordMod.Options.UseStaminaMechanics != null) ? SwordMod.Options.UseStaminaMechanics.Value : false;
+        public static bool UseStaminaMechanics => (SwordMod.Options.UseStaminaMechanics != null) ? ModManager.MSC && SwordMod.Options.UseStaminaMechanics.Value : false;
         public static float ExhaustionRateModifier => (SwordMod.Options.ExhaustionRateModifier != null) ? SwordMod.Options.ExhaustionRateModifier.Value : 1.0f;
         public static float ExhaustionDamageModifier => (SwordMod.Options.ExhaustionDamageModifier != null) ? SwordMod.Options.ExhaustionDamageModifier.Value : 0.2f;
 
@@ -110,6 +130,10 @@ namespace SwordMod
         public override void Update(bool eu)
         {
             this.rotationSpeed = 0;
+
+            //don't update graphics if it's not mine
+            //if (SafeMeadowInterface.IsOnline() && !SafeMeadowInterface.IsMine(this.abstractPhysicalObject))
+                //return;
 
             if (swingTimer > 0 && this.thrownBy != null)
             {
@@ -205,7 +229,7 @@ namespace SwordMod
 
                 this.firstChunk.pos = properPosition;
                 this.firstChunk.lastPos = properLastPos;
-                this.firstChunk.vel = this.thrownBy.firstChunk.vel + this.rotation * 55f;
+                this.firstChunk.vel = this.thrownBy.firstChunk.vel;
             }
         }
 
@@ -354,6 +378,14 @@ namespace SwordMod
                 return false;
             }
 
+            //how it works with Meadow:
+            //If the sword IS mine, then do EVERYTHING, including calling HitByWeapon so other players know that there was a hit
+
+            //If the sword is NOT mine, then make the particles and sound (and damage myself, if it hit me)
+            //but that's it. No creature damage, stun, physics, knockback, etc.
+
+
+            //moves appendages, like popcorn plants
             /*
             if (result.chunk == null)
             {
@@ -365,82 +397,59 @@ namespace SwordMod
             }
             */
 
-            if (result.obj is Creature && swingTimer <= CreatureDamageTime)
+            if (result.obj is Creature creature && swingTimer <= CreatureDamageTime)
             {
                 //don't let scavengers hit other scavengers
                 if (this.thrownBy is Scavenger && result.obj is Scavenger)
                     return false;
 
                 //don't hit players when spears hit is off
-                if (result.obj is Player && ((!this.room.game.IsArenaSession && ModManager.CoopAvailable && !Custom.rainWorld.options.friendlyFire) || (this.room.game.IsArenaSession && !this.room.game.GetArenaGameSession.arenaSitting.gameTypeSetup.spearsHitPlayers)))
+                if (result.obj is Player //friendly fire only applies to players, duh
+                    && !SafeMeadowInterface.FriendlyFire() //if Meadow says friendly fire is on, then it's on
+                    && ((!this.room.game.IsArenaSession && !Custom.rainWorld.options.friendlyFire) || (this.room.game.IsArenaSession && !this.room.game.GetArenaGameSession.arenaSitting.gameTypeSetup.spearsHitPlayers)))
                 {
                     return false;
                 }
 
+                Vector2 hitPos = result.collisionPoint;
+                if (result.collisionPoint == null || result.collisionPoint.sqrMagnitude <= 0)
+                {
+                    try
+                    {
+                        hitPos = (result.chunk == null) ? result.onAppendagePos.appendage.segments[result.onAppendagePos.prevSegment] : result.chunk.pos;
+                    }
+                    catch (Exception ex)
+                    {
+                        hitPos = this.firstChunk.pos + this.firstChunk.vel * 1.5f;
+                    }
+                }
+
+                HitSomethingClientSide(result, hitPos);
+
+                //only hit if the sword is mine
+                if (SafeMeadowInterface.IsOnline() && !SafeMeadowInterface.IsMine(this.abstractPhysicalObject))
+                    return false;
+
+                //signal the hit to other players
+                if (SafeMeadowInterface.IsOnline())
+                    SafeMeadowInterface.SignalSwordHit(this, creature, swingDamage);
+
+                //actual damage/physics code
+
                 float massMult = (result.chunk == null) ? 0.1f : ((result.chunk.mass < this.firstChunk.mass) ? result.chunk.mass / this.firstChunk.mass : 1f);
                 if (swingDir.y < -0.5f) //down-swing
                 {
-                    (result.obj as Creature).Violence(base.firstChunk, KnockbackModifier * swingDamage * this.firstChunk.mass * massMult * (base.firstChunk.vel * 0.5f + swingDir * 3f), result.chunk, result.onAppendagePos, Creature.DamageType.Blunt, swingDamage * SwingDamageModifier, StunModifier * swingDamage * 24f * (1f + 0.3f * this.thrownBy.mainBodyChunk.vel.magnitude));
+                    creature.Violence(base.firstChunk, KnockbackModifier * swingDamage * this.firstChunk.mass * massMult * (base.firstChunk.vel * 0.5f + swingDir * 3f), result.chunk, result.onAppendagePos, Creature.DamageType.Blunt, swingDamage * SwingDamageModifier, StunModifier * swingDamage * 24f * (1f + 0.3f * this.thrownBy.mainBodyChunk.vel.magnitude) + BaseStunShift);
                 }
                 else if (swingDir.y > 0.5f) //up-swing
                 {
-                    (result.obj as Creature).Violence(base.firstChunk, KnockbackModifier * swingDamage * this.firstChunk.mass * massMult * (base.firstChunk.vel * 0.5f + new Vector2(swingDir.x * 3f, swingDir.y * 30f * VerticalKnockbackModifier)), result.chunk, result.onAppendagePos, Creature.DamageType.Blunt, swingDamage * SwingDamageModifier, StunModifier * swingDamage * 16f * (1f + 0.1f * this.thrownBy.mainBodyChunk.vel.magnitude));
+                    creature.Violence(base.firstChunk, KnockbackModifier * swingDamage * this.firstChunk.mass * massMult * (base.firstChunk.vel * 0.5f + new Vector2(swingDir.x * 3f, swingDir.y * 30f * VerticalKnockbackModifier)), result.chunk, result.onAppendagePos, Creature.DamageType.Blunt, swingDamage * SwingDamageModifier, StunModifier * swingDamage * 16f * (1f + 0.1f * this.thrownBy.mainBodyChunk.vel.magnitude) + BaseStunShift);
                 }
                 else //stab
                 {
-                    (result.obj as Creature).Violence(base.firstChunk, KnockbackModifier * swingDamage * this.firstChunk.mass * massMult * (base.firstChunk.vel * 1.0f + swingDir * 3f), result.chunk, result.onAppendagePos, Creature.DamageType.Stab, swingDamage * SwingDamageModifier, StunModifier * swingDamage * 8f * (1f + 0.2f * this.thrownBy.mainBodyChunk.vel.magnitude));
+                    creature.Violence(base.firstChunk, KnockbackModifier * swingDamage * this.firstChunk.mass * massMult * (base.firstChunk.vel * 1.0f + swingDir * 3f), result.chunk, result.onAppendagePos, Creature.DamageType.Stab, swingDamage * SwingDamageModifier, StunModifier * swingDamage * 8f * (1f + 0.2f * this.thrownBy.mainBodyChunk.vel.magnitude) + BaseStunShift);
                 }
 
-                Vector2 hitPos;
-                try
-                {
-                    hitPos = (result.chunk == null) ? result.onAppendagePos.appendage.segments[result.onAppendagePos.prevSegment] : result.chunk.pos;
-                } catch (Exception ex)
-                {
-                    hitPos = this.firstChunk.pos + this.firstChunk.vel * 1.5f;
-                }
-
-                //sounds and particles
-                //if sticks in creature (or would, if it were a spear)
-                if ((result.obj as Creature).SpearStick(this, swingDamage * SwingDamageModifier, result.chunk, result.onAppendagePos, this.firstChunk.vel))
-                {
-                    if (canHitCreatureSound)
-                    {
-                        if (SwordMod.CustomHitSoftSound)
-                            this.room.PlayCustomChunkSound(SwordMod.HitSoftSoundId, this.firstChunk, swingDamage, 0.9f + 0.3f * UnityEngine.Random.value);
-                        else
-                            this.room.PlaySound(SoundID.Spear_Stick_In_Creature, base.firstChunk, false, swingDamage * 1.3f, 1.2f + 0.3f * UnityEngine.Random.value);
-                    }
-                    for (int i = 0; i < Mathf.Floor(5 * swingDamage); i++)
-                    {
-                        this.room.AddObject(new WaterDrip(Vector2.Lerp(this.firstChunk.pos + this.firstChunk.vel, hitPos, Random.value), Custom.RNV() * 20f * Random.value, false));
-                    }
-                }
-                else //if bounces off creature
-                {
-                    if (canHitCreatureSound)
-                    {
-                        if (SwordMod.CustomHitHardSound)
-                            this.room.PlayCustomChunkSound(SwordMod.HitHardSoundId, this.firstChunk, swingDamage, 0.9f + 0.3f * UnityEngine.Random.value);
-                        else
-                            this.room.PlaySound(SoundID.Spear_Bounce_Off_Creauture_Shell, base.firstChunk, false, swingDamage, 1.2f + 0.3f * UnityEngine.Random.value);
-                    }
-                    for (int i = 0; i < Mathf.Floor(5 * swingDamage); i++)
-                    {
-                        this.room.AddObject(new Spark(Vector2.Lerp(this.firstChunk.pos + this.firstChunk.vel, hitPos, Random.value), Custom.RNV() * 20f * Random.value, new Color(0.8f, 0.7f, 0.7f), null, 2, 4));
-                    }
-                }
-                canHitCreatureSound = false;
-
-                if (ModManager.MSC && result.obj is Player)
-                {
-                    Player player = result.obj as Player;
-                    player.playerState.permanentDamageTracking += (double)((swingDamage * SwingDamageModifier) / player.Template.baseDamageResistance);
-                    if (player.playerState.permanentDamageTracking >= 1.0)
-                    {
-                        player.Die();
-                    }
-                }
 
                 //swing pushback
                 Vector2 pushDir = ((this.thrownBy.mainBodyChunk.pos - hitPos).normalized - swingDir.normalized + (this.thrownBy.mainBodyChunk.pos - (this.firstChunk.pos + this.firstChunk.vel)).normalized) / 3f;
@@ -460,6 +469,8 @@ namespace SwordMod
 
                 //canHitWall = false;
 
+                //creature.HitByWeapon(this);
+
                 return true;
             }
             else if (result.obj is Weapon)
@@ -469,6 +480,77 @@ namespace SwordMod
             }
 
             return false;
+        }
+
+        public void HitSomethingClientSide(SharedPhysics.CollisionResult result, Vector2? hitPos = null, float damage = 0)
+        {
+            if (result.obj is not Creature creature)
+                return;
+
+            if (damage <= 0)
+                damage = swingDamage;
+
+            //get hit pos
+            if (hitPos is null)
+            {
+                try
+                {
+                    hitPos = (result.chunk == null) ? result.onAppendagePos.appendage.segments[result.onAppendagePos.prevSegment] : result.chunk.pos;
+                }
+                catch (Exception ex)
+                {
+                    hitPos = this.firstChunk.pos + this.firstChunk.vel * 1.5f;
+                }
+            }
+
+            //sounds and particles
+
+            //if sticks in creature (or would, if it were a spear)
+            if (creature.SpearStick(this, damage * SwingDamageModifier, result.chunk, result.onAppendagePos, this.firstChunk.vel))
+            {
+                if (canHitCreatureSound)
+                {
+                    if (SwordMod.CustomHitSoftSound)
+                        this.room.PlayCustomChunkSound(SwordMod.HitSoftSoundId, this.firstChunk, damage, 0.9f + 0.3f * UnityEngine.Random.value);
+                    else
+                        this.room.PlaySound(SoundID.Spear_Stick_In_Creature, base.firstChunk, false, damage * 1.3f, 1.2f + 0.3f * UnityEngine.Random.value);
+                }
+                for (int i = 0; i < Mathf.Floor(5 * damage); i++)
+                {
+                    this.room.AddObject(new WaterDrip(Vector2.Lerp(this.firstChunk.pos + this.firstChunk.vel, hitPos.Value, Random.value), Custom.RNV() * 20f * Random.value, false));
+                }
+            }
+            else //if bounces off creature
+            {
+                if (canHitCreatureSound)
+                {
+                    if (SwordMod.CustomHitHardSound)
+                        this.room.PlayCustomChunkSound(SwordMod.HitHardSoundId, this.firstChunk, damage, 0.9f + 0.3f * UnityEngine.Random.value);
+                    else
+                        this.room.PlaySound(SoundID.Spear_Bounce_Off_Creauture_Shell, base.firstChunk, false, damage, 1.2f + 0.3f * UnityEngine.Random.value);
+                }
+                for (int i = 0; i < Mathf.Floor(5 * damage); i++)
+                {
+                    this.room.AddObject(new Spark(Vector2.Lerp(this.firstChunk.pos + this.firstChunk.vel, hitPos.Value, Random.value), Custom.RNV() * 20f * Random.value, new Color(0.8f, 0.7f, 0.7f), null, 2, 4));
+                }
+            }
+            canHitCreatureSound = false;
+
+
+            //hurt player (moved before Meadow break so that players can actually get hurt by swords)
+            if (ModManager.MSC && result.obj is Player player)
+            {
+                //NOTE: does NOT work with Rain Meadow players!!
+                player.playerState.permanentDamageTracking += (double)((damage * SwingDamageModifier) / player.Template.baseDamageResistance);
+                if (player.playerState.permanentDamageTracking >= 1.0)
+                {
+                    player.Die();
+                }
+
+                //if (SafeMeadowInterface.IsOnline() && !SafeMeadowInterface.IsMine(player.abstractPhysicalObject))
+                //player.HitByWeapon(this);
+                //SafeMeadowInterface.SignalPlayerDamaged(player.abstractPhysicalObject, (damage * SwingDamageModifier) / player.Template.baseDamageResistance);
+            }
         }
 
         public override void HitByWeapon(Weapon weapon)
