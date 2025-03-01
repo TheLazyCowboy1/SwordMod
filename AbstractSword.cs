@@ -26,7 +26,8 @@ public class AbstractSword : AbstractPhysicalObject
     public AbstractSword(World world, AbstractObjectType type, PhysicalObject realizedObject, WorldCoordinate pos, EntityID ID, int textureIndex)
         : this(world, type, realizedObject, pos, ID)
     {
-        TextureIndex = textureIndex;
+        if (textureIndex < SwordMod.SwordTextureCount)
+            TextureIndex = textureIndex;
     }
 
     public override string ToString()
