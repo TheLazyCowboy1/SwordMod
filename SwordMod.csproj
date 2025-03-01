@@ -9,10 +9,6 @@
 	  <Reference Include="..\REFERENCES\*.dll" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Sword Mod\modify\world\" />
-  </ItemGroup>
-
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<ItemGroup>
 			<BuildFiles Include="$(Outdir)\SwordMod.*" />
