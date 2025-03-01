@@ -92,16 +92,12 @@ public class MeadowCompatSetup
                 Lobby.OnAvailable += AddLobbyData;
                 LobbyHookAdded = true;
                 ExtraDebug("Added lobby available event");
-                /*
-                weaponRealizeHook = new Hook(
-                    typeof(RealizedWeaponState).GetConstructor(new Type[] { typeof(OnlinePhysicalObject) }),
-                    RealizedWeaponState_ctor
-                    );
-                */
+
                 weaponRealizeHook = new Hook(
                     typeof(AbstractPhysicalObjectState).GetMethod("GetRealizedState", BindingFlags.NonPublic | BindingFlags.Instance),
                     AbstractPhysicalObjectState_GetRealizedState
                     );
+                //AbstractPhysicalObjectState.CustomObjectStateHooks.Add(opo => (opo.apo.realizedObject is SwordMod.Sword) ? new SwordState(opo) : null);
             }
         }
         catch (Exception ex) { LogSomething(ex); }
@@ -115,19 +111,6 @@ public class MeadowCompatSetup
             return new SwordState(opo);
         }
         return orig(self, opo);
-    }
-
-    private delegate void RealizedWeaponState_ctor_orig(RealizedWeaponState self, OnlinePhysicalObject opo);
-    private static void RealizedWeaponState_ctor(RealizedWeaponState_ctor_orig orig, RealizedWeaponState self, OnlinePhysicalObject opo)
-    {
-        if (opo.apo.type == SwordMod.Sword.SwordType && self is not SwordState)
-        {
-            //it's a sword, but this isn't a sword state!!!
-            self = new SwordState(opo);
-            Logger?.LogDebug("Successfully converted RealizedWeaponState into SwordState");
-        }
-        else
-            orig(self, opo);
     }
 
     /**<summary>

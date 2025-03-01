@@ -68,9 +68,13 @@ namespace SwordMod
             }
         }
 
+        public int TextureIndex = 0;
+
         //ctor
-        public Sword(AbstractPhysicalObject obj, World world) : base(obj, world)
+        public Sword(AbstractSword obj, World world) : base(obj, world)
         {
+            TextureIndex = obj.TextureIndex;
+
             base.bodyChunks = new BodyChunk[1];
             //base.bodyChunks[0] = new BodyChunk(this, 0, new Vector2(0f, 0f), 5f, 0.07f); //copied from spear
             base.bodyChunks[0] = new BodyChunk(this, 0, new Vector2(0f, 0f), 15f, 0.3f);
@@ -102,9 +106,12 @@ namespace SwordMod
         {
             sLeaser.sprites = new FSprite[1];
             //sLeaser.sprites[0] = new FSprite("BioSpear2", true);
-            sLeaser.sprites[0] = new FSprite("SwordMod_Sword", true);
+            if (TextureIndex > 0)
+                sLeaser.sprites[0] = new FSprite($"SwordMod_Sword{TextureIndex}", true);
+            else
+                sLeaser.sprites[0] = new FSprite("SwordMod_Sword", true);
 
-            rCam.room.world.game.rainWorld.HandleLog("[Sword Mod]: Sword sprite details: w:" + sLeaser.sprites[0].width + ", h:" + sLeaser.sprites[0].height, "no stack", UnityEngine.LogType.Log);
+            rCam.room.world.game.rainWorld.HandleLog($"[Sword Mod]: Sword sprite details: w:{sLeaser.sprites[0].width}, h:{sLeaser.sprites[0].height}, idx:{TextureIndex}", "no stack", UnityEngine.LogType.Log);
 
             this.AddToContainer(sLeaser, rCam, null);
         }

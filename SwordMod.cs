@@ -10,6 +10,7 @@ using MonoMod.RuntimeDetour;
 using System.IO;
 using Random = UnityEngine.Random;
 using RainMeadowCompat;
+using UnityEngine;
 
 #pragma warning disable CS0618
 
@@ -23,10 +24,11 @@ public partial class SwordMod : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.SwordMod";
     public const string MOD_NAME = "Sword Mod";
-    public const string MOD_VERSION = "1.0.6";
+    public const string MOD_VERSION = "1.0.7";
 
     public static SwordModOptions Options;
 
+    public static int SwordTextureCount = 1;
     public static bool CustomHitSoftSound = false, CustomHitHardSound = false, CustomHitWallSound = false, CustomParrySound = false, CustomSwingSound = false;
     public static string HitSoftSoundId = "Sword_Hit_Soft", HitHardSoundId = "Sword_Hit_Hard", HitWallSoundId = "Sword_Hit_Wall", ParrySoundId = "Sword_Parry", SwingSoundId = "Sword_Swing";
 
@@ -54,6 +56,7 @@ public partial class SwordMod : BaseUnityPlugin
 
         if (IsInit)
         {
+            On.SaveState.AbstractPhysicalObjectFromString -= SaveState_AbstractPhysicalObjectFromString;
             On.AbstractPhysicalObject.Realize -= Sword_Object_Realizer;
             On.Player.Grabability -= Sword_Grabability;
             On.Player.ctor -= Spawn_Sword_On_Player_Spawn;
@@ -65,8 +68,7 @@ public partial class SwordMod : BaseUnityPlugin
             On.Scavenger.FlyingWeapon -= Scav_Parry_Sword;
             On.ScavengerAbstractAI.InitGearUp -= Scav_Spawn_Sword;
 
-            if (MoonDeadHook != null)
-                MoonDeadHook.Undo();
+            MoonDeadHook?.Undo();
 
             SafeMeadowInterface.RemoveHooks();
 
@@ -93,6 +95,7 @@ public partial class SwordMod : BaseUnityPlugin
             //On.GameSession.ctor += GameSessionOnctor;
 
             //On.AbstractPhysicalObject.ctor += Sword_Object_Realizer;
+            On.SaveState.AbstractPhysicalObjectFromString += SaveState_AbstractPhysicalObjectFromString;
             On.AbstractPhysicalObject.Realize += Sword_Object_Realizer;
 
             On.Player.Grabability += Sword_Grabability;
@@ -129,7 +132,35 @@ public partial class SwordMod : BaseUnityPlugin
                 //Futile.atlasManager.LoadAtlas(AssetManager.ResolveDirectory("assets\\KarmaExpansion") + "\\ExtraKarmaSymbols");
                 //SwordAssetPath = AssetManager.ResolveDirectory("assets" + Path.DirectorySeparatorChar + "SwordMod") + Path.DirectorySeparatorChar + "SwordMod_Sword";
                 //Futile.atlasManager.LoadImage(SwordAssetPath);
-                Futile.atlasManager.LoadAtlas(Regex.Replace(AssetManager.ResolveFilePath("assets" + Path.DirectorySeparatorChar + "SwordMod" + Path.DirectorySeparatorChar + "SwordMod_Sword.png"), ".png", ""));
+                Futile.atlasManager.LoadAtlas(AssetManager.ResolveFilePath(Path.Combine("assets", "SwordMod", "SwordMod_Sword.png")).TrimEnd(".png".ToCharArray()));
+
+                //look through each mod's assets directory to search for additional sword textures
+                SwordTextureCount = 1;
+                foreach (var mod in ModManager.ActiveMods)
+                {
+                    var path = Path.Combine(mod.path, "assets", "SwordMod");
+                    if (Directory.Exists(path))
+                    {
+                        foreach (var file in Directory.EnumerateFiles(path))
+                        {
+                            try
+                            {
+                                var fileName = Path.GetFileName(file).ToLowerInvariant();
+                                if (fileName != "swordmod_sword.png" && fileName.StartsWith("swordmod_sword") && fileName.EndsWith(".png"))
+                                {
+                                    //Futile.atlasManager.AddAtlas(new FAtlas($"SwordMod_Sword{SwordTextures++}", file, AssetManager.ResolveFilePath(Path.Combine("assets", "SwordMod", "SwordMod_Sword.txt")), FAtlasManager._nextAtlasIndex++, false));
+                                    //Futile.atlasManager.ActuallyLoadAtlasOrImage($"SwordMod_Sword{SwordTextures++}", file, "");
+                                    Texture2D texture = new (1, 1, TextureFormat.ARGB32, false);
+                                    AssetManager.SafeWWWLoadTexture(ref texture, file, false, true);
+                                    Futile.atlasManager.AddAtlas(new($"SwordMod_Sword{SwordTextureCount++}", texture, FAtlasManager._nextAtlasIndex++, false));
+                                }
+                            } catch (Exception ex)
+                            {
+                                Logger.LogError(ex);
+                            }
+                        }
+                    }
+                }
 
                 //test for custom sounds
                 CustomHitSoftSound = File.Exists(AssetManager.ResolveFilePath("loadedsoundeffects" + Path.DirectorySeparatorChar + HitSoftSoundId + ".wav"));
@@ -219,7 +250,7 @@ public partial class SwordMod : BaseUnityPlugin
         {
             try
             {
-                AbstractPhysicalObject obj = new AbstractPhysicalObject(room.world, Sword.SwordType, null, self.room.GetWorldCoordinate(self.oracleBehavior.OracleGetToPos), room.world.game.GetNewID());
+                AbstractPhysicalObject obj = new AbstractSword(room.world, Sword.SwordType, null, self.room.GetWorldCoordinate(self.oracleBehavior.OracleGetToPos), room.world.game.GetNewID());
                 room.abstractRoom.AddEntity(obj);
                 obj.RealizeInRoom();
                 Logger.LogInfo("Spawned sword at Iterator; " + self.oracleBehavior.OracleGetToPos.ToString());
@@ -245,10 +276,32 @@ public partial class SwordMod : BaseUnityPlugin
             && (!SafeMeadowInterface.IsOnline() || SafeMeadowInterface.IsHost()))
         {
             for (int i = 0; i < Options.RandomArenaSwords.Value; i++)
-                self.abstractRoom.AddEntity(new AbstractPhysicalObject(self.world, Sword.SwordType, null, new WorldCoordinate(self.abstractRoom.index, Random.RandomRange(5, 60), Random.RandomRange(20, 35), -1), self.game.GetNewID(-self.abstractRoom.index)));
+                self.abstractRoom.AddEntity(new AbstractSword(self.world, Sword.SwordType, null, new WorldCoordinate(self.abstractRoom.index, Random.Range(5, self.abstractRoom.size.x - 5), Random.Range(self.abstractRoom.size.y / 2, self.abstractRoom.size.y - 5), -1), self.game.GetNewID(-self.abstractRoom.index)));
         }
     }
 
+    public AbstractPhysicalObject SaveState_AbstractPhysicalObjectFromString(On.SaveState.orig_AbstractPhysicalObjectFromString orig, World world, string objString)
+    {
+        try
+        {
+            string[] array = Regex.Split(objString, "<oA>");
+            if (array.Length > 2)
+            {
+                EntityID ID = EntityID.FromString(array[0]);
+                AbstractPhysicalObject.AbstractObjectType type = new AbstractPhysicalObject.AbstractObjectType(array[1], false);
+                WorldCoordinate pos = WorldCoordinate.FromString(array[2]);
+                if (type == Sword.SwordType)
+                {
+                    if (array.Length > 3 && Int32.TryParse(array[3], out var texIdx))
+                        return new AbstractSword(world, type, null, pos, ID, texIdx);
+                    return new AbstractSword(world, type, null, pos, ID);
+                }
+            }
+        }
+        catch { }
+
+        return orig(world, objString);
+    }
     //public void Sword_Object_Realizer(On.AbstractPhysicalObject.orig_ctor orig, AbstractPhysicalObject self, World world, AbstractPhysicalObject.AbstractObjectType type, PhysicalObject realizedObject, WorldCoordinate pos, EntityID ID)
     public void Sword_Object_Realizer(On.AbstractPhysicalObject.orig_Realize orig, AbstractPhysicalObject self)
     {
@@ -256,7 +309,9 @@ public partial class SwordMod : BaseUnityPlugin
 
         if (self.type == Sword.SwordType)
         {
-            self.realizedObject = new Sword(self, self.world);
+            if (self is not AbstractSword)
+                self = new AbstractSword(self.world, self.type, self.realizedObject, self.pos, self.ID);
+            self.realizedObject = new Sword((AbstractSword)self, self.world);
             Logger.LogDebug("Sword ExtEnum index: " + (int) Sword.SwordType);
         }
     }
@@ -274,7 +329,7 @@ public partial class SwordMod : BaseUnityPlugin
 
         try
         {
-            AbstractPhysicalObject abstractPhysicalObject = new AbstractPhysicalObject(world, Sword.SwordType, null, self.room.GetWorldCoordinate(self.mainBodyChunk.pos), world.game.GetNewID());
+            AbstractPhysicalObject abstractPhysicalObject = new AbstractSword(world, Sword.SwordType, null, self.room.GetWorldCoordinate(self.mainBodyChunk.pos), world.game.GetNewID());
             abstractCreature.Room.AddEntity(abstractPhysicalObject);
             abstractPhysicalObject.RealizeInRoom();
         }
@@ -291,7 +346,7 @@ public partial class SwordMod : BaseUnityPlugin
         float mod = (self.parent.creatureTemplate.type == MoreSlugcatsEnums.CreatureTemplateType.ScavengerElite) ? 4f : 1f;
         if (Random.value < Options.ScavSpawnChance.Value * mod)
         {
-            AbstractPhysicalObject abstractSword = new AbstractPhysicalObject(self.world, Sword.SwordType, null, self.parent.pos, self.world.game.GetNewID());//new AbstractSpear(self.world, null, self.parent.pos, self.world.game.GetNewID(), self.IsSpearExplosive(num));
+            AbstractPhysicalObject abstractSword = new AbstractSword(self.world, Sword.SwordType, null, self.parent.pos, self.world.game.GetNewID());//new AbstractSpear(self.world, null, self.parent.pos, self.world.game.GetNewID(), self.IsSpearExplosive(num));
             self.world.GetAbstractRoom(self.parent.pos).AddEntity(abstractSword);
             new AbstractPhysicalObject.CreatureGripStick(self.parent, abstractSword, 0, true);
         }
