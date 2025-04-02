@@ -24,7 +24,7 @@ public partial class SwordMod : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.SwordMod";
     public const string MOD_NAME = "Sword Mod";
-    public const string MOD_VERSION = "1.0.7";
+    public const string MOD_VERSION = "1.0.8";
 
     public static SwordModOptions Options;
 
@@ -343,7 +343,7 @@ public partial class SwordMod : BaseUnityPlugin
     {
         orig(self);
 
-        float mod = (self.parent.creatureTemplate.type == MoreSlugcatsEnums.CreatureTemplateType.ScavengerElite) ? 4f : 1f;
+        float mod = (self.parent.creatureTemplate.type == DLCSharedEnums.CreatureTemplateType.ScavengerElite) ? 4f : 1f;
         if (Random.value < Options.ScavSpawnChance.Value * mod)
         {
             AbstractPhysicalObject abstractSword = new AbstractSword(self.world, Sword.SwordType, null, self.parent.pos, self.world.game.GetNewID());//new AbstractSpear(self.world, null, self.parent.pos, self.world.game.GetNewID(), self.IsSpearExplosive(num));
@@ -381,12 +381,12 @@ public partial class SwordMod : BaseUnityPlugin
             return 5;
         return orig(self, obj, weaponFiltered);
     }
-    public int Scav_Sword_Weapon_Score(On.ScavengerAI.orig_WeaponScore orig, ScavengerAI self, PhysicalObject obj, bool pickupDropInsteadOfWeaponSelection)
+    public int Scav_Sword_Weapon_Score(On.ScavengerAI.orig_WeaponScore orig, ScavengerAI self, PhysicalObject obj, bool pickupDropInsteadOfWeaponSelection, bool reallyWantsSpear)
     {
         if (obj is not Sword)
-            return orig(self, obj, pickupDropInsteadOfWeaponSelection);
+            return orig(self, obj, pickupDropInsteadOfWeaponSelection, reallyWantsSpear);
         if (self.scavenger == null || self.focusCreature == null)
-            return orig(self, obj, pickupDropInsteadOfWeaponSelection);
+            return orig(self, obj, pickupDropInsteadOfWeaponSelection, reallyWantsSpear);
         return (Custom.DistLess(self.scavenger.mainBodyChunk.pos, self.scavenger.room.MiddleOfTile(self.focusCreature.BestGuessForPosition()), self.scavenger.MeleeRange * 1.5f)) ? 15 : 0; //60-210 range
     }
     public void Scav_Parry_Sword(On.Scavenger.orig_FlyingWeapon orig, Scavenger self, Weapon weapon)

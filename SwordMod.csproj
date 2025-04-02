@@ -5,14 +5,19 @@
     <LangVersion>11</LangVersion>
   </PropertyGroup>
 
-  <ItemGroup>
-	  <Reference Include="..\REFERENCES\*.dll" />
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="..\REFERENCES\*.dll"/>
+	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<ItemGroup>
 			<BuildFiles Include="$(Outdir)\SwordMod.*" />
 		</ItemGroup>
+		<Copy SourceFiles="@(BuildFiles)" DestinationFolder="Sword Mod\plugins" />
+		<ItemGroup>
+			<OutputFolder Include="Sword Mod\*" />
+		</ItemGroup>
+		<Copy SourceFiles="@(OutputFolder)" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mods\Sword Mod" />
 		<Copy SourceFiles="@(BuildFiles)" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mods\Sword Mod\plugins" />
 	</Target>
 
