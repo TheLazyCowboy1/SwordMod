@@ -11,6 +11,7 @@ using System.IO;
 using Random = UnityEngine.Random;
 using RainMeadowCompat;
 using UnityEngine;
+using System.Globalization;
 
 #pragma warning disable CS0618
 
@@ -24,7 +25,7 @@ public partial class SwordMod : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.SwordMod";
     public const string MOD_NAME = "Sword Mod";
-    public const string MOD_VERSION = "1.0.8";
+    public const string MOD_VERSION = "1.0.9";
 
     public static SwordModOptions Options;
 
@@ -285,14 +286,21 @@ public partial class SwordMod : BaseUnityPlugin
         try
         {
             string[] array = Regex.Split(objString, "<oA>");
-            if (array.Length > 2)
+            if (array.Length > 3)
             {
-                EntityID ID = EntityID.FromString(array[0]);
+                EntityID ID;// = EntityID.FromString(array[0]);
+                if (array[0].Contains("<oB>")) //stupid Watcher shenanigans again; mostly copied from decompiled code
+                {
+                    string[] array2 = Regex.Split(array[0], "<oB>");
+                    ID = EntityID.FromString(array2[0]);
+                    //num = int.Parse(array2[1], NumberStyles.Any, CultureInfo.InvariantCulture);
+                }
+                else ID = EntityID.FromString(array[0]);
                 AbstractPhysicalObject.AbstractObjectType type = new AbstractPhysicalObject.AbstractObjectType(array[1], false);
                 WorldCoordinate pos = WorldCoordinate.FromString(array[2]);
                 if (type == Sword.SwordType)
                 {
-                    if (array.Length > 3 && Int32.TryParse(array[3], out var texIdx))
+                    if (array.Length > 4 && Int32.TryParse(array[4], out var texIdx))
                         return new AbstractSword(world, type, null, pos, ID, texIdx);
                     return new AbstractSword(world, type, null, pos, ID);
                 }
